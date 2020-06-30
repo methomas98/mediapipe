@@ -426,7 +426,7 @@ void AnnotationRenderer::DrawPoint(const RenderAnnotation& annotation) {
   cv::Point point_to_draw(x, y);
   const cv::Scalar color = MediapipeColorToOpenCVColor(annotation.color());
   const int thickness = annotation.thickness();
-  cv::circle(mat_image_, point_to_draw, thickness, color, -1);
+  cv::circle(mat_image_, point_to_draw, thickness, color, thickness);
 }
 
 void AnnotationRenderer::DrawLine(const RenderAnnotation& annotation) {
@@ -507,6 +507,20 @@ void AnnotationRenderer::DrawText(const RenderAnnotation& annotation) {
   cv::putText(mat_image_, text.display_text(), origin, font_face, font_scale,
               color, thickness, /*lineType=*/8,
               /*bottomLeftOrigin=*/flip_text_vertically_);
+}
+
+void AnnotationRenderer::DrawText(std::string text)
+{
+  const int left = 275;
+  const int top = 50;
+  const cv::Point origin(left, top);
+  const int font_size = 35;
+  const int thickness = 5;
+  const cv::Scalar color = cv::Scalar(255.0, 0.0, 0.0);
+  const cv::HersheyFonts font_face = cv::FONT_HERSHEY_PLAIN;
+
+  const double font_scale = ComputeFontScale(font_face, font_size, thickness);
+  cv::putText(mat_image_, text, origin, font_face, font_scale, color, thickness);
 }
 
 double AnnotationRenderer::ComputeFontScale(int font_face, int font_size,

@@ -89,6 +89,7 @@ mediapipe_simple_subgraph(
         "//mediapipe/calculators/util:rect_transformation_calculator",
         "//mediapipe/calculators/util:thresholding_calculator",
         "//mediapipe/graphs/hand_tracking/calculators:hand_detections_to_rects_calculator",
+        "//hand-gesture-recognition:hand-gesture-recognition-calculator",
     ],
 )
 
@@ -197,6 +198,7 @@ mediapipe_simple_subgraph(
         "//mediapipe/calculators/util:rect_transformation_calculator",
         "//mediapipe/calculators/util:thresholding_calculator",
         "//mediapipe/graphs/hand_tracking/calculators:hand_detections_to_rects_calculator",
+        "//hand-gesture-recognition:hand-gesture-recognition-calculator",
     ],
 )
 
