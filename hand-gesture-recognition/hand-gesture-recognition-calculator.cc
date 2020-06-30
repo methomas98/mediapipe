@@ -126,6 +126,12 @@ REGISTER_CALCULATOR(HandGestureRecognitionCalculator);
     if (landmarkList.landmark(7).y() < pseudoFixKeyPoint && landmarkList.landmark(8).y() < landmarkList.landmark(7).y())
     {
         firstFingerIsOpen = true;
+
+        // But if the tip of the finger is close to the base, finger should be closed (account for errors when close together)
+        if(this->isThumbNearFirstFinger(landmarkList.landmark(5), landmarkList.landmark(8))){
+            firstFingerIsOpen = false;
+        }
+
     }
 
     pseudoFixKeyPoint = landmarkList.landmark(10).y();
@@ -133,13 +139,25 @@ REGISTER_CALCULATOR(HandGestureRecognitionCalculator);
     if (landmarkList.landmark(11).y() < pseudoFixKeyPoint && landmarkList.landmark(12).y() < landmarkList.landmark(11).y())
     {
         secondFingerIsOpen = true;
-    }
+
+         // But if the tip of the finger is close to the base, finger should be closed (account for errors when close together)
+        if(this->isThumbNearFirstFinger(landmarkList.landmark(9), landmarkList.landmark(12))){
+            secondFingerIsOpen = false;
+        }
+
+   }
 
     pseudoFixKeyPoint = landmarkList.landmark(14).y();
     //if (landmarkList.landmark(15).y() < pseudoFixKeyPoint && landmarkList.landmark(16).y() < pseudoFixKeyPoint)
     if (landmarkList.landmark(15).y() < pseudoFixKeyPoint && landmarkList.landmark(16).y() < landmarkList.landmark(15).y())
     {
         thirdFingerIsOpen = true;
+
+        // But if the tip of the finger is close to the base, finger should be closed (account for errors when close together)
+        if(this->isThumbNearFirstFinger(landmarkList.landmark(13), landmarkList.landmark(16))){
+            thirdFingerIsOpen = false;
+        }
+
     }
 
     pseudoFixKeyPoint = landmarkList.landmark(18).y();
@@ -147,67 +165,86 @@ REGISTER_CALCULATOR(HandGestureRecognitionCalculator);
     if (landmarkList.landmark(19).y() < pseudoFixKeyPoint && landmarkList.landmark(20).y() < landmarkList.landmark(19).y())
     {
         fourthFingerIsOpen = true;
+
+        // But if the tip of the finger is close to the base, finger should be closed (account for errors when close together)
+        if(this->isThumbNearFirstFinger(landmarkList.landmark(17), landmarkList.landmark(20))){
+            fourthFingerIsOpen = false;
+        }
+
     }
 
+    // Create 8 bit integer with the bit "finger states"
+    u_int8_t States = 0x00;
+    States = (fourthFingerIsOpen << 4) | (thirdFingerIsOpen << 3) | (secondFingerIsOpen << 2) | (firstFingerIsOpen << 1) |  (thumbIsOpen << 0); 
+
     // Hand gesture recognition
-    if (thumbIsOpen && firstFingerIsOpen && secondFingerIsOpen && thirdFingerIsOpen && fourthFingerIsOpen)
+    switch(States)
     {
+        case 0b11111:
         recognized_hand_gesture = new std::string("FIVE");
-    }
-    else if (!thumbIsOpen && firstFingerIsOpen && secondFingerIsOpen && thirdFingerIsOpen && fourthFingerIsOpen)
-    {
+        break;
+
+        case 0b11110:
         recognized_hand_gesture = new std::string("FOUR");
-    }
-    else if (thumbIsOpen && firstFingerIsOpen && secondFingerIsOpen && !thirdFingerIsOpen && !fourthFingerIsOpen)
-    {
+        break;
+
+        case 0b00111:
         recognized_hand_gesture = new std::string("THREE");
-    }
-    else if (!thumbIsOpen && firstFingerIsOpen && secondFingerIsOpen && thirdFingerIsOpen && !fourthFingerIsOpen)
-    {
+        break;
+
+        case 0b01110:
         recognized_hand_gesture = new std::string("THREE");
-    }
-    else if (thumbIsOpen && firstFingerIsOpen && !secondFingerIsOpen && !thirdFingerIsOpen && !fourthFingerIsOpen)
-    {
+        break;
+
+        case 0b00011:
         recognized_hand_gesture = new std::string("TWO");
-    }
-    else if (!thumbIsOpen && firstFingerIsOpen && !secondFingerIsOpen && !thirdFingerIsOpen && !fourthFingerIsOpen)
-    {
+        break;
+
+        case 0b00110:
+        recognized_hand_gesture = new std::string("TWO");
+        break;
+
+        case 0b00010:
         recognized_hand_gesture = new std::string("ONE");
-    }
-    else if (!thumbIsOpen && firstFingerIsOpen && secondFingerIsOpen && !thirdFingerIsOpen && !fourthFingerIsOpen)
-    {
-        recognized_hand_gesture = new std::string("TWO");
-    }
-    else if (!thumbIsOpen && firstFingerIsOpen && !secondFingerIsOpen && !thirdFingerIsOpen && fourthFingerIsOpen)
-    {
+        break;
+
+        case 0b10010:
         recognized_hand_gesture = new std::string("ROCK");
-    }
-    else if (thumbIsOpen && firstFingerIsOpen && !secondFingerIsOpen && !thirdFingerIsOpen && fourthFingerIsOpen)
-    {
+        break;
+
+        case 0b10011:
         recognized_hand_gesture = new std::string("SPIDERMAN");
-    }
-    else if (thumbIsOpen && !firstFingerIsOpen && !secondFingerIsOpen && !thirdFingerIsOpen && !fourthFingerIsOpen)
-    {
-        recognized_hand_gesture = new std::string("YES");
-    }
-    else if (!thumbIsOpen && !firstFingerIsOpen && secondFingerIsOpen && !thirdFingerIsOpen && !fourthFingerIsOpen)
-    {
-        recognized_hand_gesture = new std::string("PROVECTUS");
-    }
-    else if (!thumbIsOpen && !firstFingerIsOpen && !secondFingerIsOpen && !thirdFingerIsOpen && !fourthFingerIsOpen)
-    {
-        recognized_hand_gesture = new std::string("FIST");
-    }
-    else if (!firstFingerIsOpen && secondFingerIsOpen && thirdFingerIsOpen && fourthFingerIsOpen && this->isThumbNearFirstFinger(landmarkList.landmark(4), landmarkList.landmark(8)))
-    {
-        recognized_hand_gesture = new std::string("OK");
-    }
-    else
-    {
+        break;
+
+        case 0b00001:
+        recognized_hand_gesture = new std::string("YES"); // thumbs up
+        break;
+
+        case 0b00100:
+        recognized_hand_gesture = new std::string("EXPLETIVE"); 
+        break;
+
+        case 0b00000:
+        recognized_hand_gesture = new std::string("FIST"); 
+        break;
+
+        default:
         recognized_hand_gesture = new std::string("___");
-        LOG(INFO) << "Finger States: " << thumbIsOpen << firstFingerIsOpen << secondFingerIsOpen << thirdFingerIsOpen << fourthFingerIsOpen;       
+        //LOG(INFO) << "Finger States: " << thumbIsOpen << firstFingerIsOpen << secondFingerIsOpen << thirdFingerIsOpen << fourthFingerIsOpen;       
+        break;
+
     }
+
+    // This case will overwrite case "ONE"
+    //if (!firstFingerIsOpen && secondFingerIsOpen && thirdFingerIsOpen && fourthFingerIsOpen && this->isThumbNearFirstFinger(landmarkList.landmark(4), landmarkList.landmark(8)))
+    if ( ((States|0x01) == 0b11101)  && this->isThumbNearFirstFinger(landmarkList.landmark(4), landmarkList.landmark(8)))
+    {
+        recognized_hand_gesture = new std::string("PERFECT");
+    }
+
+
     // LOG(INFO) << recognized_hand_gesture;
+    LOG(INFO) << "Finger States: " << thumbIsOpen << firstFingerIsOpen << secondFingerIsOpen << thirdFingerIsOpen << fourthFingerIsOpen;       
 
     cc->Outputs()
         .Tag(recognizedHandGestureTag)
