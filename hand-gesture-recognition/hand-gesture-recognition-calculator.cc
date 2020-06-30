@@ -99,32 +99,52 @@ REGISTER_CALCULATOR(HandGestureRecognitionCalculator);
     bool fourthFingerIsOpen = false;
     //
 
+    // My edits: June 30
+    // Orientation: true if the thumb is on the left side of the "normalized" image
+    bool orientation = true;
+    
+    if (landmarkList.landmark(5).x() > landmarkList.landmark(17).x()){
+        orientation = false;
+    }
+    //LOG(INFO) << "Orientation: " << orientation;
+    
+    // Hand is oriented with thumb on left side (orientation == True)
     float pseudoFixKeyPoint = landmarkList.landmark(2).x();
-    if (landmarkList.landmark(3).x() < pseudoFixKeyPoint && landmarkList.landmark(4).x() < pseudoFixKeyPoint)
+    if (orientation && landmarkList.landmark(3).x() < pseudoFixKeyPoint && landmarkList.landmark(4).x() < pseudoFixKeyPoint)
+    {
+        thumbIsOpen = true;
+    }
+
+    // Hand is oriented with thumb on right side (orientation == False)
+    if (!orientation && landmarkList.landmark(3).x() > pseudoFixKeyPoint && landmarkList.landmark(4).x() > pseudoFixKeyPoint)
     {
         thumbIsOpen = true;
     }
 
     pseudoFixKeyPoint = landmarkList.landmark(6).y();
-    if (landmarkList.landmark(7).y() < pseudoFixKeyPoint && landmarkList.landmark(8).y() < pseudoFixKeyPoint)
+    //if (landmarkList.landmark(7).y() < pseudoFixKeyPoint && landmarkList.landmark(8).y() < pseudoFixKeyPoint)
+    if (landmarkList.landmark(7).y() < pseudoFixKeyPoint && landmarkList.landmark(8).y() < landmarkList.landmark(7).y())
     {
         firstFingerIsOpen = true;
     }
 
     pseudoFixKeyPoint = landmarkList.landmark(10).y();
-    if (landmarkList.landmark(11).y() < pseudoFixKeyPoint && landmarkList.landmark(12).y() < pseudoFixKeyPoint)
+    //if (landmarkList.landmark(11).y() < pseudoFixKeyPoint && landmarkList.landmark(12).y() < pseudoFixKeyPoint)
+    if (landmarkList.landmark(11).y() < pseudoFixKeyPoint && landmarkList.landmark(12).y() < landmarkList.landmark(11).y())
     {
         secondFingerIsOpen = true;
     }
 
     pseudoFixKeyPoint = landmarkList.landmark(14).y();
-    if (landmarkList.landmark(15).y() < pseudoFixKeyPoint && landmarkList.landmark(16).y() < pseudoFixKeyPoint)
+    //if (landmarkList.landmark(15).y() < pseudoFixKeyPoint && landmarkList.landmark(16).y() < pseudoFixKeyPoint)
+    if (landmarkList.landmark(15).y() < pseudoFixKeyPoint && landmarkList.landmark(16).y() < landmarkList.landmark(15).y())
     {
         thirdFingerIsOpen = true;
     }
 
     pseudoFixKeyPoint = landmarkList.landmark(18).y();
-    if (landmarkList.landmark(19).y() < pseudoFixKeyPoint && landmarkList.landmark(20).y() < pseudoFixKeyPoint)
+    //if (landmarkList.landmark(19).y() < pseudoFixKeyPoint && landmarkList.landmark(20).y() < pseudoFixKeyPoint)
+    if (landmarkList.landmark(19).y() < pseudoFixKeyPoint && landmarkList.landmark(20).y() < landmarkList.landmark(19).y())
     {
         fourthFingerIsOpen = true;
     }
@@ -140,7 +160,11 @@ REGISTER_CALCULATOR(HandGestureRecognitionCalculator);
     }
     else if (thumbIsOpen && firstFingerIsOpen && secondFingerIsOpen && !thirdFingerIsOpen && !fourthFingerIsOpen)
     {
-        recognized_hand_gesture = new std::string("TREE");
+        recognized_hand_gesture = new std::string("THREE");
+    }
+    else if (!thumbIsOpen && firstFingerIsOpen && secondFingerIsOpen && thirdFingerIsOpen && !fourthFingerIsOpen)
+    {
+        recognized_hand_gesture = new std::string("THREE");
     }
     else if (thumbIsOpen && firstFingerIsOpen && !secondFingerIsOpen && !thirdFingerIsOpen && !fourthFingerIsOpen)
     {
@@ -152,7 +176,7 @@ REGISTER_CALCULATOR(HandGestureRecognitionCalculator);
     }
     else if (!thumbIsOpen && firstFingerIsOpen && secondFingerIsOpen && !thirdFingerIsOpen && !fourthFingerIsOpen)
     {
-        recognized_hand_gesture = new std::string("YEAH");
+        recognized_hand_gesture = new std::string("TWO");
     }
     else if (!thumbIsOpen && firstFingerIsOpen && !secondFingerIsOpen && !thirdFingerIsOpen && fourthFingerIsOpen)
     {
@@ -161,6 +185,14 @@ REGISTER_CALCULATOR(HandGestureRecognitionCalculator);
     else if (thumbIsOpen && firstFingerIsOpen && !secondFingerIsOpen && !thirdFingerIsOpen && fourthFingerIsOpen)
     {
         recognized_hand_gesture = new std::string("SPIDERMAN");
+    }
+    else if (thumbIsOpen && !firstFingerIsOpen && !secondFingerIsOpen && !thirdFingerIsOpen && !fourthFingerIsOpen)
+    {
+        recognized_hand_gesture = new std::string("YES");
+    }
+    else if (!thumbIsOpen && !firstFingerIsOpen && secondFingerIsOpen && !thirdFingerIsOpen && !fourthFingerIsOpen)
+    {
+        recognized_hand_gesture = new std::string("PROVECTUS");
     }
     else if (!thumbIsOpen && !firstFingerIsOpen && !secondFingerIsOpen && !thirdFingerIsOpen && !fourthFingerIsOpen)
     {
