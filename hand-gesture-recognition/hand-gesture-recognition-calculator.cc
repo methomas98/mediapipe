@@ -3,6 +3,18 @@
 #include "mediapipe/framework/formats/landmark.pb.h"
 #include "mediapipe/framework/formats/rect.pb.h"
 
+// Strings
+//#include <stdlib.h>
+//#include <bits/stdc++.h>
+
+// Named pipe
+#include <stdio.h>
+#include <string.h>
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
+
 namespace mediapipe
 {
 
@@ -27,6 +39,10 @@ public:
     ::mediapipe::Status Open(CalculatorContext *cc) override;
 
     ::mediapipe::Status Process(CalculatorContext *cc) override;
+
+    // Named pipe
+    int fd;
+    char * myfifo = "/tmp/myfifo";
 
 private:
     float get_Euclidean_DistanceAB(float a_x, float a_y, float b_x, float b_y)
@@ -63,6 +79,10 @@ REGISTER_CALCULATOR(HandGestureRecognitionCalculator);
     CalculatorContext *cc)
 {
     cc->SetOffset(TimestampDiff(0));
+
+    // NAMED PIPE
+    mkfifo(myfifo, 0666);
+
     return ::mediapipe::OkStatus();
 }
 
@@ -80,6 +100,7 @@ REGISTER_CALCULATOR(HandGestureRecognitionCalculator);
     {
         // LOG(INFO) << "No Hand Detected";
         recognized_hand_gesture = new std::string("___");
+
         cc->Outputs()
             .Tag(recognizedHandGestureTag)
             .Add(recognized_hand_gesture, cc->InputTimestamp());
@@ -197,7 +218,7 @@ REGISTER_CALCULATOR(HandGestureRecognitionCalculator);
         break;
 
         case 0b00011:
-        recognized_hand_gesture = new std::string("TWO");
+        recognized_hand_gesture = new std::string("CHECK");
         break;
 
         case 0b00110:
@@ -217,7 +238,7 @@ REGISTER_CALCULATOR(HandGestureRecognitionCalculator);
         break;
 
         case 0b00001:
-        recognized_hand_gesture = new std::string("YES"); // thumbs up
+        recognized_hand_gesture = new std::string("THUMBS UP"); 
         break;
 
         case 0b00100:
@@ -228,6 +249,14 @@ REGISTER_CALCULATOR(HandGestureRecognitionCalculator);
         recognized_hand_gesture = new std::string("FIST"); 
         break;
 
+        case 0b10000:
+        recognized_hand_gesture = new std::string("PINKY"); 
+        break;
+
+        case 0b10001:
+        recognized_hand_gesture = new std::string("HANG LOOSE"); 
+        break;
+
         default:
         recognized_hand_gesture = new std::string("___");
         //LOG(INFO) << "Finger States: " << thumbIsOpen << firstFingerIsOpen << secondFingerIsOpen << thirdFingerIsOpen << fourthFingerIsOpen;       
@@ -235,16 +264,21 @@ REGISTER_CALCULATOR(HandGestureRecognitionCalculator);
 
     }
 
-    // This case will overwrite case "ONE"
+    // This case will overwrite case "FIVE"
     //if (!firstFingerIsOpen && secondFingerIsOpen && thirdFingerIsOpen && fourthFingerIsOpen && this->isThumbNearFirstFinger(landmarkList.landmark(4), landmarkList.landmark(8)))
     if ( ((States|0x01) == 0b11101)  && this->isThumbNearFirstFinger(landmarkList.landmark(4), landmarkList.landmark(8)))
     {
         recognized_hand_gesture = new std::string("PERFECT");
     }
 
+    // Named pipe
+    const char * message = (*recognized_hand_gesture).c_str();
+    fd = open(myfifo, O_WRONLY);
+    write(fd,message,strlen(message)+1); 
+    close(fd);
 
     // LOG(INFO) << recognized_hand_gesture;
-    LOG(INFO) << "Finger States: " << thumbIsOpen << firstFingerIsOpen << secondFingerIsOpen << thirdFingerIsOpen << fourthFingerIsOpen;       
+    //LOG(INFO) << "Finger States: " << thumbIsOpen << firstFingerIsOpen << secondFingerIsOpen << thirdFingerIsOpen << fourthFingerIsOpen;       
 
     cc->Outputs()
         .Tag(recognizedHandGestureTag)
