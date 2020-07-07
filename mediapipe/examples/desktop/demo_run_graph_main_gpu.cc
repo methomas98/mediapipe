@@ -168,7 +168,12 @@ DEFINE_string(output_video_path, "",
       cv::imshow(kWindowName, output_frame_mat);
       // Press any key to exit.
       const int pressed_key = cv::waitKey(5);
-      if (pressed_key >= 0 && pressed_key != 255) grab_frames = false;
+
+      // EDIT: Mia T July 7
+      //  - I don't want to exit as soon as a key is pressed. 
+      //  - It may be my installation, but if I press a key while the window is selected, I get a segmentation fault.
+      //  - Instead, use Ctrl C to exit. 
+      //if (pressed_key >= 0 && pressed_key != 255) grab_frames = false;
     }
   }
 
