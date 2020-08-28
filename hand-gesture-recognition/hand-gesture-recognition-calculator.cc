@@ -3,10 +3,6 @@
 #include "mediapipe/framework/formats/landmark.pb.h"
 #include "mediapipe/framework/formats/rect.pb.h"
 
-// Strings
-//#include <stdlib.h>
-//#include <bits/stdc++.h>
-
 // Named pipe
 #include <stdio.h>
 #include <string.h>
@@ -14,6 +10,40 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+
+/** \file  hand-gesture-recognition-calculator.cc 
+ ** @class mediapipe::HandGestureRecognitionCalculator
+ *  \brief Calculator that builds on hand detection to output a hand gesture.
+ * 
+ * * This calculator runs on top of Google's Open-Source Mediapipe Software that runs the hand detection. The hand detection:
+ *   - Runs a palm detection and outputs a "normalized" image of the hand (where the base of the palm is *always* on top).
+ *   - It detects 21 key points on the hand (base of fingers, knuckles, finger tips, thumb, and base of hand).
+ *   - For more information, see the following link: [Google AI's Blog Post](https://ai.googleblog.com/2019/08/on-device-real-time-hand-tracking-with.html)
+ * 
+ * * This calculator was modified from a [github project](https://gist.github.com/TheJLifeX/74958cc59db477a91837244ff598ef4a), because google did not release the full gesture detection.
+ * * The gesture detection runs as follows:
+ *   - Based on the relative positions of the finger tips and knuckles, each finger (and thumb) is assigned a state of "up" or "down"   
+ *   - A switch case matches the finger positions to a gesture
+ *   - Checks if the thumb and index finger are close together, making the 'perfect' hand gesture
+ *   - Opens a named pipe for writing (goes to the gesture recognition ROS node)
+ *   - Returns calculator status to main program
+ * 
+ * * Other Notes:
+ *   - As mentioned before, google's media pipe outputs a 'normalized' image with the different keypoints on the hand.
+ *     + In this case, the palm is always on the top, so we can compare the relative heights of the fingertips and knuckles to determine if they are open or closed.
+ *     + However, the thumb must be determined separately. The calculator determines the thumb orientation by getting the relative position of two finger bases. 
+ *       Then, based on the orientation of the thumb, the relative position of the thumb tip and knuckle can be used to get the 'thumb state' (open or closed). 
+ *       Determining the thumb orientation was not a part of the copied github project, but now allows gesture detection of left and right hands, as well as palm facing toward and away from camera.
+ * 
+ * 
+ *   | |
+ *   | :---|
+ *   | \image html hand-landmarks.jpg "Hand Landmarks" width=350 |
+ *  
+ * **Annotated normalized hand image showing the numbering of the different 'track points' on the hand.**
+ * 
+ */
+
 
 namespace mediapipe
 {
@@ -40,17 +70,28 @@ public:
 
     ::mediapipe::Status Process(CalculatorContext *cc) override;
 
-    // Named pipe
+    /// Named pipe file descriptor
     int fd;
+    /// Named pipe file path
     char * myfifo = "/tmp/myfifo";
 
 private:
+    /** \brief Get distance between two landmark points in the normalized image.
+     * 
+     *  Normalized image is on a grid from [0,1] in the x and y directions (as seen in hand landmark image)
+     */
     float get_Euclidean_DistanceAB(float a_x, float a_y, float b_x, float b_y)
     {
         float dist = std::pow(a_x - b_x, 2) + pow(a_y - b_y, 2);
         return std::sqrt(dist);
     }
 
+    /** \brief Determine if two fingers are close together (can be any two points, not just on thumb and index finger).
+     * 
+     * Two points are defined as 'close' when they are < 0.1 units apart in the normalized image.
+     * Normalized image is on a grid from [0,1] in the x and y directions (as seen in hand landmark image)
+     * Returns boolean
+     */
     bool isThumbNearFirstFinger(NormalizedLandmark point1, NormalizedLandmark point2)
     {
         float distance = this->get_Euclidean_DistanceAB(point1.x(), point1.y(), point2.x(), point2.y());
@@ -58,8 +99,10 @@ private:
     }
 };
 
+/// Register hand gesture calculator with the rest of the mediapipe system
 REGISTER_CALCULATOR(HandGestureRecognitionCalculator);
 
+/** \brief Initialization member function */
 ::mediapipe::Status HandGestureRecognitionCalculator::GetContract(
     CalculatorContract *cc)
 {
@@ -75,6 +118,9 @@ REGISTER_CALCULATOR(HandGestureRecognitionCalculator);
     return ::mediapipe::OkStatus();
 }
 
+/** \brief Initialization member function.
+ *  Use this function for any further initialization.
+*/
 ::mediapipe::Status HandGestureRecognitionCalculator::Open(
     CalculatorContext *cc)
 {
@@ -86,6 +132,7 @@ REGISTER_CALCULATOR(HandGestureRecognitionCalculator);
     return ::mediapipe::OkStatus();
 }
 
+/** \brief Main processing function that receives the hand position and runs the gesture detection. */
 ::mediapipe::Status HandGestureRecognitionCalculator::Process(
     CalculatorContext *cc)
 {
@@ -118,17 +165,20 @@ REGISTER_CALCULATOR(HandGestureRecognitionCalculator);
     bool secondFingerIsOpen = false;
     bool thirdFingerIsOpen = false;
     bool fourthFingerIsOpen = false;
-    //
 
-    // My edits: June 30
-    // Orientation: true if the thumb is on the left side of the "normalized" image
+    /* 
+     * Orientation: true if the thumb is on the left side of the "normalized" image
+     */
     bool orientation = true;
-    
     if (landmarkList.landmark(5).x() > landmarkList.landmark(17).x()){
         orientation = false;
     }
     //LOG(INFO) << "Orientation: " << orientation;
     
+    /* 
+     * Determine if thumb open or closed based on the orientation
+     */ 
+
     // Hand is oriented with thumb on left side (orientation == True)
     float pseudoFixKeyPoint = landmarkList.landmark(2).x();
     if (orientation && landmarkList.landmark(3).x() < pseudoFixKeyPoint && landmarkList.landmark(4).x() < pseudoFixKeyPoint)
@@ -141,6 +191,10 @@ REGISTER_CALCULATOR(HandGestureRecognitionCalculator);
     {
         thumbIsOpen = true;
     }
+
+    /*
+     * Check if each finger open or closed
+     */
 
     pseudoFixKeyPoint = landmarkList.landmark(6).y();
     //if (landmarkList.landmark(7).y() < pseudoFixKeyPoint && landmarkList.landmark(8).y() < pseudoFixKeyPoint)
@@ -196,6 +250,7 @@ REGISTER_CALCULATOR(HandGestureRecognitionCalculator);
 
     // Create 8 bit integer with the bit "finger states"
     u_int8_t States = 0x00;
+    // States = 0b[pinkyFinger][ringFinger][middleFinger][indexFinger][thumb]
     States = (fourthFingerIsOpen << 4) | (thirdFingerIsOpen << 3) | (secondFingerIsOpen << 2) | (firstFingerIsOpen << 1) |  (thumbIsOpen << 0); 
 
     // Hand gesture recognition
@@ -259,19 +314,17 @@ REGISTER_CALCULATOR(HandGestureRecognitionCalculator);
 
         default:
         recognized_hand_gesture = new std::string("___");
-        //LOG(INFO) << "Finger States: " << thumbIsOpen << firstFingerIsOpen << secondFingerIsOpen << thirdFingerIsOpen << fourthFingerIsOpen;       
         break;
 
     }
 
-    // This case will overwrite case "FIVE"
-    //if (!firstFingerIsOpen && secondFingerIsOpen && thirdFingerIsOpen && fourthFingerIsOpen && this->isThumbNearFirstFinger(landmarkList.landmark(4), landmarkList.landmark(8)))
+    // This case will overwrite other cases
     if ( ((States|0x01) == 0b11101)  && this->isThumbNearFirstFinger(landmarkList.landmark(4), landmarkList.landmark(8)))
     {
         recognized_hand_gesture = new std::string("PERFECT");
     }
 
-    // Named pipe
+    // Named pipe to send off data
     const char * message = (*recognized_hand_gesture).c_str();
     fd = open(myfifo, O_WRONLY);
     write(fd,message,strlen(message)+1); 
